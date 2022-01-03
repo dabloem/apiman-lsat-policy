@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "LSAT Pricing Configuration",
+  "type": "object",
+  "properties": {
+    "price": {
+      "title": "Default price",
+      "description": "Price in sats, when no Pricer-plugin is loaded",
+      "type": "integer",
+      "default": 100,
+      "minimum": 1
+    }
+  }
+}

@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: io.apiman:apiman-common-plugin:2.2.1-SNAPSHOT">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/io/apiman/apiman-common-plugin/2.2.1-SNAPSHOT/apiman-common-plugin-2.2.1-20220101.161008-6.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/io/apiman/apiman-common-plugin/2.2.1-SNAPSHOT/apiman-common-plugin-2.2.1-20220101.161008-6-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/io/apiman/apiman-common-plugin/2.2.1-SNAPSHOT/apiman-common-plugin-2.2.1-20220101.161008-6-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: io.apiman:apiman-gateway-engine-core:2.2.1-SNAPSHOT">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/io/apiman/apiman-gateway-engine-core/2.2.1-SNAPSHOT/apiman-gateway-engine-core-2.2.1-20220101.161100-6.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/io/apiman/apiman-gateway-engine-core/2.2.1-SNAPSHOT/apiman-gateway-engine-core-2.2.1-20220101.161100-6-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/io/apiman/apiman-gateway-engine-core/2.2.1-SNAPSHOT/apiman-gateway-engine-core-2.2.1-20220101.161100-6-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

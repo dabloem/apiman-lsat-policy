@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <annotationProcessing>
+      <profile name="Maven default annotation processors profile" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <module name="apiman-plugins-lsat-pricing-policy" />
+        <module name="lsat-spec" />
+        <module name="apiman-plugins-noop-policy" />
+      </profile>
+    </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="apiman-plugins-lsat-pricing-policy" target="1.8" />
+      <module name="apiman-plugins-noop-policy" target="1.8" />
+      <module name="lsat-spec" target="11" />
+    </bytecodeTargetLevel>
+  </component>
+</project>

@@ -1,0 +1,6 @@
+{
+  "frameworkVersion" : 1.0,
+  "name" : "LSAT Lightning Policy",
+  "description" : "This plugin adds and validates LSAT Authentication.",
+  "version" : "${project.version}"
+}

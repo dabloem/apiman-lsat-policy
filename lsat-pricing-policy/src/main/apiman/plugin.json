@@ -1,0 +1,6 @@
+{
+  "frameworkVersion" : 1.0,
+  "name" : "LSAT Pricing Policy",
+  "description" : "This plugin prices and add LSAT verifiers.",
+  "version" : "${project.version}"
+}

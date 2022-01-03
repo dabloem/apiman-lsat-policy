@@ -1,0 +1,14 @@
+<component name="ArtifactManager">
+  <artifact type="war" name="apiman-plugins-lsat-pricing-policy:war">
+    <output-path>$PROJECT_DIR$/../lsat-pricing-policy/target</output-path>
+    <properties id="maven-jee-properties">
+      <options>
+        <module>apiman-plugins-lsat-pricing-policy</module>
+        <packaging>war</packaging>
+      </options>
+    </properties>
+    <root id="archive" name="apiman-plugins-lsat-pricing-policy-2.2.1-SNAPSHOT.war">
+      <element id="artifact" artifact-name="apiman-plugins-lsat-pricing-policy:war exploded" />
+    </root>
+  </artifact>
+</component>
