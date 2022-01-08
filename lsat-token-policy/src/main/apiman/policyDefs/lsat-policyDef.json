@@ -1,0 +1,7 @@
+{
+  "id" : "lsat-token-policy",
+  "name" : "LSAT Token Policy",
+  "description" : "A policy that adds and validates LSAT Authentication",
+  "policyImpl" : "plugin:${project.groupId}:${project.artifactId}:${project.version}:${project.packaging}/io.apiman.plugins.token_policy.TokenPolicy",
+  "icon" : "bolt"
+}

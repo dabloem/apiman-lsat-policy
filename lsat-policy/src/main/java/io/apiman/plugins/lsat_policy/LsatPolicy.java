@@ -17,18 +17,18 @@ package io.apiman.plugins.lsat_policy;
 
 import com.github.nitram509.jmacaroons.Macaroon;
 import com.github.nitram509.jmacaroons.MacaroonsBuilder;
+import com.github.nitram509.jmacaroons.MacaroonsVerifier;
 import com.github.nitram509.jmacaroons.verifier.TimestampCaveatVerifier;
 import com.google.common.base.Preconditions;
 import io.apiman.gateway.engine.beans.ApiRequest;
-import io.apiman.gateway.engine.beans.ApiResponse;
 import io.apiman.gateway.engine.beans.PolicyFailure;
 import io.apiman.gateway.engine.beans.PolicyFailureType;
+import io.apiman.gateway.engine.beans.exceptions.ConfigurationParseException;
 import io.apiman.gateway.engine.beans.util.HeaderMap;
 import io.apiman.gateway.engine.policies.AbstractMappedPolicy;
+import io.apiman.gateway.engine.policies.PolicyFailureCodes;
 import io.apiman.gateway.engine.policy.IPolicyChain;
 import io.apiman.gateway.engine.policy.IPolicyContext;
-import io.apiman.plugins.lsat.MacaroonsVerifierBuilder;
-import io.apiman.plugins.lsat.RegExCaveatVerifier;
 import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContextBuilder;
@@ -40,11 +40,13 @@ import org.lightningj.lnd.wrapper.ValidationException;
 import org.lightningj.lnd.wrapper.message.AddInvoiceResponse;
 import org.lightningj.lnd.wrapper.message.Invoice;
 
+import javax.net.ssl.SSLException;
 import javax.xml.bind.DatatypeConverter;
 import java.io.*;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
@@ -58,6 +60,27 @@ public class LsatPolicy extends AbstractMappedPolicy<LsatConfiguration> {
 
     private static final String PRICE = "satoshis";
 
+    private static SynchronousLndAPI synchronousLndAPI;
+
+    @Override
+    public LsatConfiguration parseConfiguration(String jsonConfiguration) throws ConfigurationParseException {
+        LsatConfiguration config = super.parseConfiguration(jsonConfiguration);
+
+        try {
+            byte[] cert = config.getTls().getBytes();
+            SslContext sslContext =
+                    GrpcSslContexts.configure(SslContextBuilder.forClient(), SslProvider.OPENSSL)
+                            .trustManager(new ByteArrayInputStream(cert))
+                            .build();
+
+            synchronousLndAPI = new SynchronousLndAPI(config.getHostx(), config.getPortx(), sslContext, () -> config.getMacaroon());
+        } catch (Exception ex) {
+            throw new ConfigurationParseException(ex);
+        }
+
+        return config;
+    }
+
     @Override
     protected Class<LsatConfiguration> getConfigurationClass() {
         return LsatConfiguration.class;
@@ -65,46 +88,19 @@ public class LsatPolicy extends AbstractMappedPolicy<LsatConfiguration> {
 
     @Override
     protected void doApply(ApiRequest request, IPolicyContext context, LsatConfiguration config, IPolicyChain<ApiRequest> chain) {
-        String authorization = request.getHeaders().get("Authorization");
-        String price = request.getHeaders().get("X-" + PRICE);
-        context.setAttribute(PRICE, price == null ? null : Integer.valueOf(price));
-
-        if (authorization == null) {
+        if (!request.getHeaders().containsKey("Authorization")) {
+            //Do Authenticate challenge
             try {
-                byte[] cert = config.getTls().getBytes();
-                SslContext sslContext =
-                        GrpcSslContexts.configure(SslContextBuilder.forClient(), SslProvider.OPENSSL)
-                                .trustManager(new ByteArrayInputStream(cert))
-                                .build();
+                AddInvoiceResponse invoice = getInvoice(context.getAttribute(PRICE, config.getPrice()), config);
 
-                SynchronousLndAPI synchronousLndAPI = new SynchronousLndAPI(config.getHostx(), config.getPortx(), sslContext, () -> config.getMacaroon());
-                Invoice invoice = new Invoice();
-                invoice.setValue(context.getAttribute(PRICE, config.getPrice()));
-                AddInvoiceResponse invoiceResponse = synchronousLndAPI.addInvoice(invoice);
-
-                String bolt11 = invoiceResponse.getPaymentRequest();
-
-                ByteArrayOutputStream outputStream = new ByteArrayOutputStream( );
-                outputStream.write(new byte[2]);
-                outputStream.write(invoiceResponse.getRHash());
-                byte[] array = new byte[32];
-                new Random().nextBytes(array);
-                outputStream.write( array );
-
-                List<String> caveats = context.getAttribute("caveats", Collections.EMPTY_LIST);
-                MacaroonsBuilder builder = new MacaroonsBuilder("lsat", config.getSecret(), Hex.encodeHexString(outputStream.toByteArray()));
-                for (String caveat : caveats) {
-                    System.out.println("adding caveat:" + caveat);
-                    builder.add_first_party_caveat(caveat);
-                }
-                Macaroon macaroon = builder.getMacaroon();
-                String serialize = macaroon.serialize();
+                Macaroon macaroon = createMacaroon(context, config, invoice);
 
                 chain.doFailure(new PolicyFailure(PolicyFailureType.Authorization, 402, "Payment required.") {
                     @Override
                     public HeaderMap getHeaders() {
                         HeaderMap headerMap = new HeaderMap();
-                        headerMap.add("WWW-Authenticate", String.format("LSAT macaroon=\"%s\", invoice=\"%s\"", serialize, bolt11));
+                        headerMap.add("WWW-Authenticate",
+                                String.format("LSAT macaroon=\"%s\", invoice=\"%s\"", macaroon.serialize(), invoice.getPaymentRequest()));
                         return headerMap;
                     }
 
@@ -113,38 +109,43 @@ public class LsatPolicy extends AbstractMappedPolicy<LsatConfiguration> {
                         return 402;
                     }
                 });
+
             } catch (IOException | ValidationException | StatusException e) {
-                System.out.println(e.getMessage());
                 chain.throwError(new Exception(e.getMessage()));
             }
         } else {
-            System.out.println("Authorization:" + authorization);
-            if (authorization.startsWith("LSAT ")) {
+            //Do Authorize
+            LsatToken lsatToken = new LsatToken(request.getHeaders().get("Authorization"));
+            if (lsatToken.isNative()) {
+                context.getLogger(getClass()).info("LSAT authorization");
                 try {
-                    System.out.println(new URL(request.getUrl()).getPath());
+                    Macaroon macaroon = MacaroonsBuilder.deserialize(lsatToken.getMacaroon());
 
-                    String token = authorization.substring("LSAT ".length());
-                    String[] strings = token.split(":");
-                    Preconditions.checkArgument(strings.length == 2, "LSAT invalid operands.");
-                    Macaroon macaroon = MacaroonsBuilder.deserialize(strings[0]);
+                    //Check macaroon
+                    MacaroonsVerifier verifier = getMacaroonsVerifier(request.getUrl(), macaroon);
+                    Preconditions.checkArgument(verifier.isValid(config.getSecret()));
+                    //Check invoice paid status via pre-image
+                    Preconditions.checkArgument(verifyPayment(macaroon, lsatToken.getPreimage()), "Invalid preimage");
 
-                    MacaroonsVerifierBuilder verifierBuilder = context.getAttribute("verifier", new MacaroonsVerifierBuilder());
-                    Preconditions.checkArgument(
-                            verifierBuilder.build(macaroon).isValid(config.getSecret()),
-                            "Invalid macaroon"
-                    );
+//                    context.setAttribute(AuthorizationPolicy.AUTHENTICATED_USER_ROLES, "reader"); //TODO TBD
+                    chain.doApply(request);
+                } catch (IllegalArgumentException | MalformedURLException e) {
+                    PolicyFailure policyFailure = new PolicyFailure(PolicyFailureType.Other, PolicyFailureCodes.USER_NOT_AUTHORIZED, e.getMessage());
+                    policyFailure.setResponseCode(400);
+                    chain.doFailure(policyFailure);
+                }
+            } else if (lsatToken.isBoltwall()) { //&& boltwall enabled?
+                context.getLogger(getClass()).info("Boltwall authorization");
+                try {
+                    Macaroon macaroon = MacaroonsBuilder.deserialize(lsatToken.getMacaroon());
+                    MacaroonsVerifier verifier = getMacaroonsVerifier(request.getUrl(), macaroon)
+                            .satisfyGeneral(new ChallengeVerifier(config)); //Additional verifier for Boltwall
 
-                    MessageDigest digest = MessageDigest.getInstance("SHA-256");
-                    byte[] encodedhash = digest.digest(hexStringToByteArray(strings[1]));
-                    Preconditions.checkArgument(
-                            macaroon.identifier.substring(4,68).equalsIgnoreCase(DatatypeConverter.printHexBinary(encodedhash)), "Invalid preimage."
-                    );
+                    Preconditions.checkArgument(verifier.isValid(config.getSecret()));
 
                     chain.doApply(request);
-                } catch (Exception e) {
-                    PolicyFailure policyFailure = new PolicyFailure(PolicyFailureType.Other, 500, e.getMessage());
-                    policyFailure.setResponseCode(e instanceof NoSuchAlgorithmException ? 500 : 400);
-                    chain.doFailure(policyFailure);
+                } catch (Exception ex) {
+                    chain.doFailure(new PolicyFailure(PolicyFailureType.Other, 402, ex.getMessage()));
                 }
             } else {
                 chain.doFailure(new PolicyFailure(PolicyFailureType.Authentication, 401, "Invalid authentication mechanism. Only LSAT allowed"));
@@ -152,9 +153,51 @@ public class LsatPolicy extends AbstractMappedPolicy<LsatConfiguration> {
         }
     }
 
-    @Override
-    public void doApply(ApiResponse response, IPolicyContext context, LsatConfiguration config, IPolicyChain<ApiResponse> chain) {
-        chain.doApply(response);
+    private MacaroonsVerifier getMacaroonsVerifier(String url, Macaroon macaroon) throws MalformedURLException {
+        MacaroonsVerifier verifier = new MacaroonsVerifier(macaroon)
+                .satisfyGeneral(new TimestampCaveatVerifier())
+                .satisfyGeneral(new GlobCaveatVerifier("resource", new URL(url).getPath())); //TODO make 'resource' static
+        return verifier;
+    }
+
+    private Macaroon createMacaroon(IPolicyContext context, LsatConfiguration config, AddInvoiceResponse invoice) throws IOException {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream( );
+        outputStream.write(new byte[2]);
+        outputStream.write(invoice.getRHash());
+        byte[] array = new byte[32];
+        new Random().nextBytes(array);
+        outputStream.write( array );
+        byte[] identifier = outputStream.toByteArray();
+
+
+        MacaroonsBuilder builder = new MacaroonsBuilder("lsat", config.getSecret(), Hex.encodeHexString(identifier));
+        //Boltwall
+        byte[] random = new byte[32];
+        new Random().nextBytes(random); //random
+        Base64.Encoder encoder = Base64.getEncoder();
+        builder.add_first_party_caveat("challenge=" + encoder.encodeToString(random) + ":" + encoder.encodeToString(invoice.getPaymentAddr()) + ":");
+
+        List<String> caveats = context.getAttribute("caveats", Collections.EMPTY_LIST);
+        for (String caveat : caveats) {
+            builder.add_first_party_caveat(caveat);
+        }
+        return builder.getMacaroon();
+    }
+
+    private AddInvoiceResponse getInvoice(Integer price, LsatConfiguration config) throws StatusException, ValidationException, SSLException {
+        Invoice invoice = new Invoice();
+        invoice.setValue(price);
+        return synchronousLndAPI.addInvoice(invoice);
+    }
+
+    private boolean verifyPayment(Macaroon macaroon, String preimage) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] encodedhash = digest.digest(hexStringToByteArray(preimage));
+            return macaroon.identifier.substring(4, 68).equalsIgnoreCase(DatatypeConverter.printHexBinary(encodedhash));
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     public static byte[] hexStringToByteArray(String s) {

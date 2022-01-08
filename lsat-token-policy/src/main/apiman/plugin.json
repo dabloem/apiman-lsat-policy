@@ -1,0 +1,6 @@
+{
+  "frameworkVersion" : 1.0,
+  "name" : "LSAT Token Policy",
+  "description" : "This plugin verifies token requests.",
+  "version" : "${project.version}"
+}

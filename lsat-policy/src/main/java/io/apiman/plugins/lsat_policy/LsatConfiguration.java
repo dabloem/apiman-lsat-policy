@@ -1,16 +1,24 @@
 package io.apiman.plugins.lsat_policy;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.io.Serializable;
 
 public class LsatConfiguration implements Serializable {
 
     private static final long serialVersionUID = 683486516910591477L;
 
+    @JsonProperty
     private String hostx;
+    @JsonProperty
     private Integer portx;
+    @JsonProperty
     private String tls;
+    @JsonProperty
     private String macaroon;
+    @JsonProperty
     private String secret;
+    @JsonProperty
     private Integer price;
 
     public String getHostx() {

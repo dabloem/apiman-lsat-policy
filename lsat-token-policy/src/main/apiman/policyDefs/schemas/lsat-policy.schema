@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "LSAT Policy Configuration",
+  "type": "object",
+  "properties": {
+    "macaroon": {
+      "title": "Macaroon in Hex",
+      "description": "(Invoices) Macaroon in Hex format",
+      "type": "string",
+      "format": "textarea"
+    },
+    "secret": {
+      "title": "Macaroon secret",
+      "description": "secret",
+      "type": "string"
+    },
+    "hostx": {
+      "title": "LND Host",
+      "description": "Host address",
+      "type": "string"
+    },
+    "portx": {
+      "title": "LND port",
+      "description": "Host port",
+      "type": "integer",
+      "default": 10019,
+      "minimum": 1
+    },
+    "tls": {
+      "title": "Certificate string",
+      "description": "Certificate in PEM format",
+      "type": "string",
+      "format": "textarea"
+    },
+    "price": {
+      "title": "Default price",
+      "description": "Price in sats, when no Pricer-plugin is loaded",
+      "type": "integer",
+      "default": 100,
+      "minimum": 1
+    }
+  }
+}

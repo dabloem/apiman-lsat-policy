@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "LSAT Token Policy Configuration",
+  "type": "object",
+  "properties": {
+    "macaroonx": {
+      "title": "Macaroon in Hex",
+      "description": "(Invoices) Macaroon in Hex format",
+      "type": "string",
+      "format": "textarea"
+    },
+    "secretx": {
+      "title": "Macaroon secret",
+      "description": "secret",
+      "type": "string"
+    },
+    "tlsx": {
+      "title": "Certificate string",
+      "description": "Certificate in PEM format",
+      "type": "string",
+      "format": "textarea"
+    },
+     "host": {
+       "title": "LND Host",
+       "description": "Host address",
+       "type": "string"
+     },
+     "port": {
+       "title": "LND port",
+       "description": "Host port",
+       "type": "integer",
+       "default": 10019,
+       "minimum": 1
+     }
+  }
+}
