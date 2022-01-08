@@ -10,7 +10,7 @@ LSAT is based on the invoice pre-image, this pre-image is proof which only the p
 
 Boltwall flow
 -
-Boltwall does not use a pre-image, but an additional request to sign a challenge (related to the paymentHash) by the lightning node.
+[Boltwall](https://github.com/Tierion/boltwall) does not use a pre-image, but an additional request to sign a challenge (related to the paymentHash) by the lightning node.
 This signature can be verified by the resource owner, and counts also as proof that the invoice has been paid.
 The benefit of this flow is that the wallet, which paid the invoice, is primarily a mobile wallet and is not connected to the browser.
 The additional round-trip is therefore required, because the browser does not have access to the pre-image.

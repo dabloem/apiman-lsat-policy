@@ -148,7 +148,7 @@ public class BoltwallConnector implements IApiConnector {
                 Preconditions.checkArgument(paymentHash.length == 64, "paymentHash invalid");
 
                 Invoice invoice = synchronousLndAPI.lookupInvoice(new String(paymentHash),  null);
-                Preconditions.checkArgument(!invoice.getSettled(), "invoice is not paid yet.");
+                Preconditions.checkArgument(invoice.getSettled(), "invoice is not paid yet.");
             } catch (Exception ex) {
                 throw new IllegalArgumentException(ex.getMessage());
             }
